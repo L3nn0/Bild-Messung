@@ -96,7 +96,7 @@ class PlanMeasureApp {
             groupActive: document.getElementById('groupActive'),
             dropzoneOverlay: document.getElementById('dropzoneOverlay'),
             fileUploadInput: document.getElementById('fileUploadInput'),
-            btnDropzoneUpload: document.getElementById('btnDropzoneUpload'),
+            btnCenterUpload: document.getElementById('btnCenterUpload') || document.getElementById('btnDropzoneUpload'),
 
             // Toolbar & Buttons
             scaleLabelText: document.getElementById('scaleLabelText'),
@@ -178,20 +178,24 @@ class PlanMeasureApp {
 
         // Dateiupload & Drag & Drop
         this.el.fileUploadInput.addEventListener('change', (e) => this.handleFileSelect(e));
-        this.el.btnDropzoneUpload.addEventListener('click', () => this.el.fileUploadInput.click());
+        if (this.el.btnCenterUpload) {
+            this.el.btnCenterUpload.addEventListener('click', () => this.el.fileUploadInput.click());
+        }
 
         // Drag & Drop auf dem Viewport
         ['dragenter', 'dragover'].forEach(eventName => {
             this.el.viewportContainer.addEventListener(eventName, (e) => {
                 e.preventDefault();
                 this.el.dropzoneOverlay.classList.remove('hidden');
-                this.el.dropzoneOverlay.querySelector('.dropzone-card').classList.add('drag-over');
+                const card = this.el.dropzoneOverlay.querySelector('.center-upload-btn, .dropzone-card') || this.el.dropzoneOverlay;
+                card.classList.add('drag-over');
             });
         });
         ['dragleave', 'drop'].forEach(eventName => {
             this.el.viewportContainer.addEventListener(eventName, (e) => {
                 e.preventDefault();
-                this.el.dropzoneOverlay.querySelector('.dropzone-card').classList.remove('drag-over');
+                const card = this.el.dropzoneOverlay.querySelector('.center-upload-btn, .dropzone-card') || this.el.dropzoneOverlay;
+                card.classList.remove('drag-over');
             });
         });
         this.el.viewportContainer.addEventListener('drop', (e) => {
@@ -241,15 +245,35 @@ class PlanMeasureApp {
         window.addEventListener('keydown', (e) => this.handleKeyDown(e));
         window.addEventListener('keyup', (e) => this.handleKeyUp(e));
 
+        // Floating Controls Event-Bubbling zum Viewport verhindern
+        const floatingControls = document.querySelector('.floating-controls');
+        if (floatingControls) {
+            ['pointerdown', 'pointerup', 'pointercancel', 'mousedown', 'mouseup', 'click', 'touchstart', 'touchend'].forEach(evt => {
+                floatingControls.addEventListener(evt, (e) => e.stopPropagation());
+            });
+        }
+
         // Floating Zoom-Buttons
-        this.el.btnZoomIn.addEventListener('click', () => this.zoomStep(1.3));
-        this.el.btnZoomOut.addEventListener('click', () => this.zoomStep(1 / 1.3));
-        this.el.btnZoomFit.addEventListener('click', () => this.zoomFit());
-        this.el.btnToggleLoupe.addEventListener('click', () => {
-            this.isLoupeEnabled = !this.isLoupeEnabled;
-            this.el.btnToggleLoupe.style.color = this.isLoupeEnabled ? 'var(--primary)' : 'var(--text-muted)';
-            this.showToast(`Präzisions-Lupe: ${this.isLoupeEnabled ? 'Aktiviert' : 'Deaktiviert'}`);
+        this.el.btnZoomIn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.zoomStep(1.3);
         });
+        this.el.btnZoomOut.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.zoomStep(1 / 1.3);
+        });
+        this.el.btnZoomFit.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.zoomFit();
+        });
+        if (this.el.btnToggleLoupe) {
+            this.el.btnToggleLoupe.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.isLoupeEnabled = !this.isLoupeEnabled;
+                this.el.btnToggleLoupe.style.color = this.isLoupeEnabled ? 'var(--primary)' : 'var(--text-muted)';
+                this.showToast(`Präzisions-Lupe: ${this.isLoupeEnabled ? 'Aktiviert' : 'Deaktiviert'}`);
+            });
+        }
 
         // Action Banner Buttons
         this.el.btnCancelAction.addEventListener('click', () => this.cancelActiveDrawing());
@@ -264,7 +288,9 @@ class PlanMeasureApp {
 
         // Skalierungs-Modal
         this.el.btnScaleQuick.addEventListener('click', () => this.openScaleModal());
-        this.el.btnSettings.addEventListener('click', () => this.openScaleModal());
+        if (this.el.btnSettings) {
+            this.el.btnSettings.addEventListener('click', () => this.openScaleModal());
+        }
         this.el.btnSaveScale.addEventListener('click', () => this.saveScaleSettings());
         this.el.btnStartCalibrateWizard.addEventListener('click', () => {
             this.closeAllModals();
@@ -421,7 +447,10 @@ class PlanMeasureApp {
     }
 
     zoomStep(factor, center = null) {
-        if (!this.imageLoaded) return;
+        if (!this.imageLoaded) {
+            this.showToast('Bitte öffne zuerst ein Bild (PNG), um zu zoomen.');
+            return;
+        }
 
         const rect = this.el.viewportContainer.getBoundingClientRect();
         const cx = center ? center.x : rect.width / 2;
@@ -440,7 +469,10 @@ class PlanMeasureApp {
     }
 
     zoomFit() {
-        if (!this.imageLoaded) return;
+        if (!this.imageLoaded) {
+            this.showToast('Bitte öffne zuerst ein Bild (PNG).');
+            return;
+        }
 
         const rect = this.el.viewportContainer.getBoundingClientRect();
         const padding = 20;
@@ -571,6 +603,11 @@ class PlanMeasureApp {
     // Pointer Events (Maus & Touch-Gesten)
     // =========================================================================
     handlePointerDown(e) {
+        // UI-Steuerelemente, Floating-Controls, Banner oder Overlays abfangen
+        if (e.target.closest('.floating-controls, .action-banner, .scalebar-widget, .hud-info, .magnifier-loupe, .modal-backdrop, .dropzone-overlay')) {
+            return;
+        }
+
         this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
         // Wenn 2 Pointer aktiv sind: Sofort Pinch-to-Zoom initialisieren (egal welches Tool!)
@@ -1352,7 +1389,7 @@ class PlanMeasureApp {
             list.innerHTML = `
                 <div class="empty-state">
                     Noch keine Messungen vorhanden.<br>
-                    Wähle oben <strong>Strecke</strong>, <strong>Pfad</strong> oder <strong>Fläche</strong>, um auf dem Plan zu messen.
+                    Wähle oben <strong>Strecke</strong> oder <strong>Fläche</strong>, um auf dem Plan zu messen.
                 </div>
             `;
             this.el.sumTotalDistance.textContent = '0.00 m';
@@ -1634,8 +1671,6 @@ class PlanMeasureApp {
             this.zoomFit();
         } else if (e.key.toLowerCase() === 'm' || e.key.toLowerCase() === 'l') {
             this.setTool('line');
-        } else if (e.key.toLowerCase() === 'p') {
-            this.setTool('path');
         } else if (e.key.toLowerCase() === 'a') {
             this.setTool('area');
         } else if (e.key.toLowerCase() === 'c') {

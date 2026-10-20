@@ -54,16 +54,6 @@
                         </svg>
                         <span>Strecke</span>
                     </button>
-                    <button id="toolPath" class="tool-btn" data-tool="path" title="Pfad / Mehrteiliges Maßband (A -> B -> C...)">
-                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="4 19 10 7 15 14 20 5"/>
-                            <circle cx="4" cy="19" r="2" fill="currentColor"/>
-                            <circle cx="10" cy="7" r="2" fill="currentColor"/>
-                            <circle cx="15" cy="14" r="2" fill="currentColor"/>
-                            <circle cx="20" cy="5" r="2" fill="currentColor"/>
-                        </svg>
-                        <span>Pfad</span>
-                    </button>
                     <button id="toolArea" class="tool-btn" data-tool="area" title="Fläche messen (Vieleck / Polygon)">
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polygon points="12 3 21 8.5 18 19 6 19 3 8.5" fill="rgba(255,255,255,0.1)"/>
@@ -83,17 +73,8 @@
                 </div>
             </div>
 
-            <!-- Header Right: Upload & Actions -->
+            <!-- Header Right: Aktionen & Messungen -->
             <div class="header-right">
-                <!-- Bild hochladen Button -->
-                <label for="fileUploadInput" class="btn btn-primary" title="Eigenes Bild / PNG hochladen">
-                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="17 8 12 3 7 8"/>
-                        <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    <span class="btn-text">Bild öffnen</span>
-                </label>
                 <input type="file" id="fileUploadInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none">
 
                 <!-- Messungen Sidebar Toggle -->
@@ -108,43 +89,21 @@
                     </svg>
                     <span id="badgeCount" class="badge-count">0</span>
                 </button>
-
-                <!-- Einstellungen Modal Toggle -->
-                <button id="btnSettings" class="btn btn-icon" title="Einstellungen & Maßstab">
-                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                    </svg>
-                </button>
             </div>
         </header>
 
         <!-- Hauptansicht: Canvas / Viewport Bereich -->
         <main id="viewportContainer" class="viewport-container">
-            <!-- Leerzustand / Dropzone wenn noch kein Bild geladen -->
+            <!-- Leerzustand: Button in der Mitte für Bildauswahl -->
             <div id="dropzoneOverlay" class="dropzone-overlay">
-                <div class="dropzone-card">
-                    <div class="dropzone-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-                            <circle cx="9" cy="9" r="2"/>
-                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-                        </svg>
-                    </div>
-                    <h2>Bild oder Lageplan hochladen</h2>
-                    <p>Ziehe eine PNG- oder Bilddatei hierher, oder wähle eine Datei aus.</p>
-                    <p class="hint">Auch riesige Dateien (z.B. 200m × 200m bei 100 px/m = 20.000 × 20.000 px) werden flüssig unterstützt.</p>
-                    <div class="dropzone-buttons">
-                        <button id="btnDropzoneUpload" class="btn btn-primary btn-lg">
-                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="17 8 12 3 7 8"/>
-                                <line x1="12" y1="3" x2="12" y2="15"/>
-                            </svg>
-                            PNG oder Bild auswählen
-                        </button>
-                    </div>
-                </div>
+                <label for="fileUploadInput" id="btnCenterUpload" class="btn btn-primary btn-lg center-upload-btn" title="Bild oder PNG öffnen">
+                    <svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <span>Bild hinzufügen</span>
+                </label>
             </div>
 
             <!-- Screen-Sized Viewport Canvas (Hardware-beschleunigt, absolut flüssig, kein Glitchen) -->
@@ -253,16 +212,6 @@
                 </svg>
                 <span>Strecke</span>
             </button>
-            <button class="mobile-nav-btn" data-tool="path">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="4 19 10 7 15 14 20 5"/>
-                    <circle cx="4" cy="19" r="2" fill="currentColor"/>
-                    <circle cx="10" cy="7" r="2" fill="currentColor"/>
-                    <circle cx="15" cy="14" r="2" fill="currentColor"/>
-                    <circle cx="20" cy="5" r="2" fill="currentColor"/>
-                </svg>
-                <span>Pfad</span>
-            </button>
             <button class="mobile-nav-btn" data-tool="area">
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="12 3 21 8.5 18 19 6 19 3 8.5" fill="rgba(255,255,255,0.1)"/>
@@ -305,7 +254,7 @@
                 <div id="measurementsList" class="measurements-list">
                     <div class="empty-state">
                         Noch keine Messungen vorhanden.<br>
-                        Wähle oben <strong>Strecke</strong>, <strong>Pfad</strong> oder <strong>Fläche</strong>, um auf dem Plan zu messen.
+                        Wähle oben <strong>Strecke</strong> oder <strong>Fläche</strong>, um auf dem Plan zu messen.
                     </div>
                 </div>
             </div>
@@ -320,8 +269,16 @@
                     Bild mit Messungen exportieren
                 </button>
                 <div class="button-row">
+                    <label for="fileUploadInput" class="btn btn-secondary btn-sm" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px;" title="Neues Bild laden">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Neues Bild
+                    </label>
                     <button id="btnClearAll" class="btn btn-danger btn-sm">Alle löschen</button>
-                    <button id="btnExportJson" class="btn btn-secondary btn-sm">JSON Export</button>
+                    <button id="btnExportJson" class="btn btn-secondary btn-sm">JSON</button>
                 </div>
             </div>
         </aside>
