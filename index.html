@@ -147,30 +147,27 @@
                 </div>
             </div>
 
-            <!-- Interaktive Zeichenebene (Stage) -->
-            <div id="stage" class="stage">
-                <!-- Hauptbild (Nativ gerendert, hochauflösend) -->
-                <img id="mainImage" alt="Geladener Plan" draggable="false">
+            <!-- Screen-Sized Viewport Canvas (Hardware-beschleunigt, absolut flüssig, kein Glitchen) -->
+            <canvas id="viewportCanvas" class="viewport-canvas"></canvas>
 
-                <!-- Vektorebene für Messlinien, Punkte und Beschriftungen -->
-                <svg id="measureSvg" class="measure-svg">
-                    <defs>
-                        <!-- Pfeilmarkierungen -->
-                        <marker id="arrowStart" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#3b82f6"/>
-                        </marker>
-                        <marker id="arrowEnd" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#3b82f6"/>
-                        </marker>
-                    </defs>
+            <!-- Screen-Sized Vektorebene für Messlinien, Punkte und Beschriftungen -->
+            <svg id="measureSvg" class="measure-svg">
+                <defs>
+                    <!-- Pfeilmarkierungen -->
+                    <marker id="arrowStart" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#3b82f6"/>
+                    </marker>
+                    <marker id="arrowEnd" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#3b82f6"/>
+                    </marker>
+                </defs>
 
-                    <!-- Gruppe für fertige Messungen -->
-                    <g id="groupMeasurements"></g>
+                <!-- Gruppe für fertige Messungen -->
+                <g id="groupMeasurements"></g>
 
-                    <!-- Gruppe für aktive / in Entstehung befindliche Zeichnung -->
-                    <g id="groupActive"></g>
-                </svg>
-            </div>
+                <!-- Gruppe für aktive / in Entstehung befindliche Zeichnung -->
+                <g id="groupActive"></g>
+            </svg>
 
             <!-- Floating Tooltips & HUD -->
             <!-- Maßstabsleiste (wie bei Google Maps / CAD, dynamisch mit Zoom) -->

@@ -2,6 +2,10 @@
  * PlanMeasure - Interaktives Maßband & Skalierungs-Web-App
  * GitHub Pages kompatibel (100% Client-Side, reines JavaScript/ES6)
  * Optimiert für Desktop und Touch-Smartphones / Tablets
+ *
+ * Architektur:
+ * Screen-Sized Viewport Canvas + Screen-Sized SVG Vector Layer
+ * Verhindert GPU-Tile-Cache-Überlauf und Browser-Glitches auf Mobilgeräten vollständig.
  */
 
 class PlanMeasureApp {
@@ -26,7 +30,7 @@ class PlanMeasureApp {
             scale: 1.0
         };
         this.minScale = 0.01;
-        this.maxScale = 60.0;
+        this.maxScale = 80.0;
 
         // Aktives Werkzeug: 'pan' | 'line' | 'path' | 'area' | 'calibrate'
         this.currentTool = 'pan';
@@ -39,6 +43,7 @@ class PlanMeasureApp {
         // Aktuell in Zeichnung befindliche Messung
         this.activeDrawing = null; // { type, points: [{x, y}] }
         this.hoverCoords = { x: 0, y: 0 };
+        this.lastPreviewCoord = null;
 
         // Pointer- & Touch-Tracking
         this.activePointers = new Map(); // pointerId -> { clientX, clientY }
@@ -47,6 +52,9 @@ class PlanMeasureApp {
         this.pinchStartScale = 1.0;
         this.pinchStartCenter = { x: 0, y: 0 };
         this.isSpacePressed = false;
+
+        // Render-Throttle per requestAnimationFrame
+        this.renderRequested = false;
 
         // Lupe-Zustand (Magnifier)
         this.isLoupeEnabled = true;
@@ -82,8 +90,7 @@ class PlanMeasureApp {
     initDomElements() {
         this.el = {
             viewportContainer: document.getElementById('viewportContainer'),
-            stage: document.getElementById('stage'),
-            mainImage: document.getElementById('mainImage'),
+            viewportCanvas: document.getElementById('viewportCanvas'),
             measureSvg: document.getElementById('measureSvg'),
             groupMeasurements: document.getElementById('groupMeasurements'),
             groupActive: document.getElementById('groupActive'),
@@ -155,6 +162,7 @@ class PlanMeasureApp {
             mobileNavBtns: document.querySelectorAll('.mobile-nav-btn')
         };
 
+        this.canvasCtx = this.el.viewportCanvas.getContext('2d');
         this.loupeCtx = this.el.loupeCanvas.getContext('2d');
     }
 
@@ -165,6 +173,7 @@ class PlanMeasureApp {
         // Window Resize
         window.addEventListener('resize', () => {
             this.updateScaleBar();
+            this.requestRender();
         });
 
         // Dateiupload & Drag & Drop
@@ -294,7 +303,7 @@ class PlanMeasureApp {
     }
 
     // =========================================================================
-    // Bildverwaltung & Rendering
+    // Bildverwaltung & Loading
     // =========================================================================
     handleFileSelect(e) {
         const file = e.target.files && e.target.files[0];
@@ -322,15 +331,6 @@ class PlanMeasureApp {
             this.imageHeight = img.naturalHeight;
             this.imageSrc = url;
 
-            // DOM Bild und SVG Abmessungen aktualisieren
-            this.el.mainImage.src = url;
-            this.el.mainImage.style.width = `${this.imageWidth}px`;
-            this.el.mainImage.style.height = `${this.imageHeight}px`;
-
-            this.el.measureSvg.setAttribute('viewBox', `0 0 ${this.imageWidth} ${this.imageHeight}`);
-            this.el.measureSvg.style.width = `${this.imageWidth}px`;
-            this.el.measureSvg.style.height = `${this.imageHeight}px`;
-
             this.el.dropzoneOverlay.classList.add('hidden');
 
             // HUD & Stats Info
@@ -338,19 +338,17 @@ class PlanMeasureApp {
             this.el.hudImageDim.textContent = `${this.imageWidth} × ${this.imageHeight} px (${mp} MP)`;
             this.updateImageStats();
 
-            // Zoom auf Fenster anpassen
+            // Zoom auf Fenster anpassen und neu zeichnen
             this.zoomFit();
-            this.renderAllMeasurements();
+            this.updateScaleBar();
 
             if (callback) callback();
         };
 
         img.onerror = async () => {
-            // Falls normaler Image-Decode fehlschlägt (z.B. wegen extremer Speichergröße auf Mobilgeräten)
             if (originalFile && window.createImageBitmap) {
                 this.showToast('Optimiere extrem großes Bild für Mobilgerät...');
                 try {
-                    // Verwende Hardware-dekodiertes Bitmap bis max 4096px
                     const bitmap = await createImageBitmap(originalFile, {
                         resizeWidth: 4096,
                         resizeQuality: 'high'
@@ -361,7 +359,6 @@ class PlanMeasureApp {
                     const ctx = tempCanvas.getContext('2d');
                     ctx.drawImage(bitmap, 0, 0);
 
-                    // Automatische Skalierung anpassen, falls herunterskaliert wurde
                     const ratio = bitmap.width / (originalFile.width || 4096);
                     this.scaleConfig.pixelsPerMeter = this.scaleConfig.pixelsPerMeter * ratio;
                     this.updateScaleDisplay();
@@ -396,17 +393,31 @@ class PlanMeasureApp {
     // Transform, Pan & Zoom Mechanik (Hardware-beschleunigt)
     // =========================================================================
     applyTransform() {
-        const { x, y, scale } = this.transform;
-        this.el.stage.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
-
         // HUD Zoom aktualisieren
-        this.el.hudZoom.textContent = `Zoom: ${Math.round(scale * 100)}%`;
+        this.el.hudZoom.textContent = `Zoom: ${Math.round(this.transform.scale * 100)}%`;
 
         // Dynamischen Maßstabsbalken aktualisieren
         this.updateScaleBar();
 
-        // Messungsgriffe und Texte anpassen, damit sie bei jedem Zoom gestochen scharf und handlich bleiben
-        this.updateHandleScale();
+        // Neuzeichnen über requestAnimationFrame triggern
+        this.requestRender();
+    }
+
+    requestRender() {
+        if (this.renderRequested) return;
+        this.renderRequested = true;
+        requestAnimationFrame(() => {
+            this.renderRequested = false;
+            this.renderScene();
+        });
+    }
+
+    renderScene() {
+        this.renderCanvas();
+        this.renderAllMeasurements();
+        if (this.activeDrawing && this.lastPreviewCoord) {
+            this.renderDrawingPreview(this.lastPreviewCoord);
+        }
     }
 
     zoomStep(factor, center = null) {
@@ -432,9 +443,9 @@ class PlanMeasureApp {
         if (!this.imageLoaded) return;
 
         const rect = this.el.viewportContainer.getBoundingClientRect();
-        const padding = 24;
-        const availW = rect.width - padding * 2;
-        const availH = rect.height - padding * 2;
+        const padding = 20;
+        const availW = Math.max(10, rect.width - padding * 2);
+        const availH = Math.max(10, rect.height - padding * 2);
 
         const scaleX = availW / this.imageWidth;
         const scaleY = availH / this.imageHeight;
@@ -477,10 +488,10 @@ class PlanMeasureApp {
     }
 
     imageToScreenCoords(imgX, imgY) {
-        const rect = this.el.viewportContainer.getBoundingClientRect();
+        // Relativ zum Viewport-Container für die exakte Positionierung der SVG-Elemente
         return {
-            x: rect.left + this.transform.x + imgX * this.transform.scale,
-            y: rect.top + this.transform.y + imgY * this.transform.scale
+            x: this.transform.x + imgX * this.transform.scale,
+            y: this.transform.y + imgY * this.transform.scale
         };
     }
 
@@ -496,10 +507,70 @@ class PlanMeasureApp {
     }
 
     // =========================================================================
+    // Canvas Viewport Rendering (Kein GPU-Tiling, absolut stabil)
+    // =========================================================================
+    renderCanvas() {
+        if (!this.imageLoaded || !this.image) return;
+
+        const canvas = this.el.viewportCanvas;
+        const ctx = this.canvasCtx;
+        const rect = this.el.viewportContainer.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        const viewW = rect.width;
+        const viewH = rect.height;
+
+        const targetW = Math.round(viewW * dpr);
+        const targetH = Math.round(viewH * dpr);
+
+        if (canvas.width !== targetW || canvas.height !== targetH) {
+            canvas.width = targetW;
+            canvas.height = targetH;
+        }
+
+        ctx.save();
+        ctx.clearRect(0, 0, targetW, targetH);
+
+        const scale = this.transform.scale;
+        const tx = this.transform.x;
+        const ty = this.transform.y;
+        const imgW = this.imageWidth;
+        const imgH = this.imageHeight;
+
+        // Sichtbarer Bildausschnitt berechnen
+        const srcX0 = -tx / scale;
+        const srcY0 = -ty / scale;
+        const srcX1 = (viewW - tx) / scale;
+        const srcY1 = (viewH - ty) / scale;
+
+        // Innerhalb der Bildgrenzen beschränken
+        const clampX0 = Math.max(0, Math.min(imgW, srcX0));
+        const clampY0 = Math.max(0, Math.min(imgH, srcY0));
+        const clampX1 = Math.max(0, Math.min(imgW, srcX1));
+        const clampY1 = Math.max(0, Math.min(imgH, srcY1));
+
+        if (clampX1 > clampX0 && clampY1 > clampY0) {
+            const sw = clampX1 - clampX0;
+            const sh = clampY1 - clampY0;
+
+            const dx = (clampX0 * scale + tx) * dpr;
+            const dy = (clampY0 * scale + ty) * dpr;
+            const dw = sw * scale * dpr;
+            const dh = sh * scale * dpr;
+
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = scale < 1 ? 'high' : 'medium';
+
+            ctx.drawImage(this.image, clampX0, clampY0, sw, sh, dx, dy, dw, dh);
+        }
+
+        ctx.restore();
+    }
+
+    // =========================================================================
     // Pointer Events (Maus & Touch-Gesten)
     // =========================================================================
     handlePointerDown(e) {
-        // Track pointer
         this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
         // Wenn 2 Pointer aktiv sind: Sofort Pinch-to-Zoom initialisieren (egal welches Tool!)
@@ -540,7 +611,6 @@ class PlanMeasureApp {
     }
 
     handlePointerMove(e) {
-        // Pointer Position updaten
         if (this.activePointers.has(e.pointerId)) {
             this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         }
@@ -646,12 +716,10 @@ class PlanMeasureApp {
             y: (p1.y + p2.y) / 2 - rect.top
         };
 
-        // Zoom um den Start-Mittelpunkt
         const scaleChange = targetScale / this.pinchStartScale;
         const newX = this.pinchStartCenter.x - (this.pinchStartCenter.x - this.pinchStartTransform.x) * scaleChange;
         const newY = this.pinchStartCenter.y - (this.pinchStartCenter.y - this.pinchStartTransform.y) * scaleChange;
 
-        // Pan Delta der beiden Finger dazurechnen
         const deltaPanX = currentCenter.x - this.pinchStartCenter.x;
         const deltaPanY = currentCenter.y - this.pinchStartCenter.y;
 
@@ -666,7 +734,7 @@ class PlanMeasureApp {
     // Präzisions-Lupe (Magnifier Loupe für Finger & Cursor)
     // =========================================================================
     showLoupeAt(screenX, screenY, imgCoords) {
-        if (!this.isLoupeEnabled || !this.imageLoaded) return;
+        if (!this.isLoupeEnabled || !this.imageLoaded || !this.image) return;
 
         const loupe = this.el.magnifierLoupe;
         loupe.classList.remove('hidden');
@@ -675,25 +743,22 @@ class PlanMeasureApp {
         loupe.style.left = `${screenX}px`;
         loupe.style.top = `${screenY}px`;
 
-        // Ausschnitt auf Lupe Canvas rendern (4x vergrößert)
         const ctx = this.loupeCtx;
         const loupeSize = 160;
         const zoomSample = 50 / (this.transform.scale > 1 ? Math.sqrt(this.transform.scale) : 1);
+        const zoomFactor = loupeSize / zoomSample;
 
+        ctx.save();
         ctx.clearRect(0, 0, loupeSize, loupeSize);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, loupeSize, loupeSize);
 
-        // Bildausschnitt zeichnen
-        ctx.drawImage(
-            this.image,
-            imgCoords.x - zoomSample / 2,
-            imgCoords.y - zoomSample / 2,
-            zoomSample,
-            zoomSample,
-            0,
-            0,
-            loupeSize,
-            loupeSize
-        );
+        // Robuste Matrix-Transformation verhindert jegliche Edge-Clipping-Fehler auf Safari
+        ctx.imageSmoothingEnabled = false;
+        ctx.translate(loupeSize / 2 - imgCoords.x * zoomFactor, loupeSize / 2 - imgCoords.y * zoomFactor);
+        ctx.scale(zoomFactor, zoomFactor);
+        ctx.drawImage(this.image, 0, 0);
+        ctx.restore();
 
         // Koordinaten / Längeninfo in Lupe Label
         const mx = (imgCoords.x / this.scaleConfig.pixelsPerMeter).toFixed(2);
@@ -709,16 +774,18 @@ class PlanMeasureApp {
     // Werkzeug- & Mess-Logik
     // =========================================================================
     setTool(tool) {
+        if (!this.imageLoaded && tool !== 'pan') {
+            this.showToast('Bitte öffne zuerst ein Bild (PNG), um Werkzeuge zu nutzen.');
+        }
+
         if (this.currentTool === tool) return;
 
-        // Vorherige unfertige Zeichnung ggf. abbrechen
         if (this.activeDrawing) {
             this.cancelActiveDrawing();
         }
 
         this.currentTool = tool;
 
-        // Buttons aktualisieren
         this.el.desktopToolBtns.forEach(btn => {
             btn.classList.toggle('active', btn.getAttribute('data-tool') === tool);
         });
@@ -726,10 +793,7 @@ class PlanMeasureApp {
             btn.classList.toggle('active', btn.getAttribute('data-tool') === tool);
         });
 
-        // Viewport Cursor Style
         this.el.viewportContainer.className = `viewport-container mode-${tool === 'pan' ? 'pan' : 'measure'}`;
-
-        // Aktions-Banner konfigurieren
         this.updateActionBanner();
     }
 
@@ -774,7 +838,6 @@ class PlanMeasureApp {
             return;
         }
 
-        // Wenn noch keine aktive Zeichnung existiert, neue starten
         if (!this.activeDrawing) {
             this.activeDrawing = {
                 type: this.currentTool,
@@ -787,7 +850,6 @@ class PlanMeasureApp {
             return;
         }
 
-        // Fortlaufende Punkte
         if (this.activeDrawing.type === 'line' || this.activeDrawing.type === 'calibrate') {
             this.activeDrawing.points.push(point);
             this.finishActiveDrawing();
@@ -802,8 +864,9 @@ class PlanMeasureApp {
         }
     }
 
-    renderDrawingPreview(currentCursor) {
+    renderDrawingPreview(currentCursorImg) {
         if (!this.activeDrawing) return;
+        this.lastPreviewCoord = currentCursorImg;
 
         const pts = this.activeDrawing.points;
         const type = this.activeDrawing.type;
@@ -812,53 +875,58 @@ class PlanMeasureApp {
 
         if (pts.length === 0) return;
 
-        const allPts = [...pts, currentCursor];
+        const screenPts = pts.map(p => this.imageToScreenCoords(p.x, p.y));
+        const sCursor = this.imageToScreenCoords(currentCursorImg.x, currentCursorImg.y);
+        const allScreenPts = [...screenPts, sCursor];
 
         if (type === 'line' || type === 'calibrate') {
             const p1 = pts[0];
-            const p2 = currentCursor;
+            const p2 = currentCursorImg;
+            const s1 = screenPts[0];
+            const s2 = sCursor;
             const distPx = Math.hypot(p2.x - p1.x, p2.y - p1.y);
             const distStr = this.formatDistance(distPx);
 
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', p1.x);
-            line.setAttribute('y1', p1.y);
-            line.setAttribute('x2', p2.x);
-            line.setAttribute('y2', p2.y);
+            line.setAttribute('x1', s1.x);
+            line.setAttribute('y1', s1.y);
+            line.setAttribute('x2', s2.x);
+            line.setAttribute('y2', s2.y);
             line.setAttribute('class', type === 'calibrate' ? 'measure-calibrate-line' : 'measure-line-preview');
             g.appendChild(line);
 
             // Startpunkt Marker
-            g.appendChild(this.createHandleElement(p1.x, p1.y, null, 0));
+            g.appendChild(this.createHandleElement(s1.x, s1.y, null, 0));
 
             // Mittiges Label mit Distanz
-            const midX = (p1.x + p2.x) / 2;
-            const midY = (p1.y + p2.y) / 2;
+            const midX = (s1.x + s2.x) / 2;
+            const midY = (s1.y + s2.y) / 2;
             g.appendChild(this.createBadgeElement(midX, midY, distStr));
         } else if (type === 'path') {
             const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-            polyline.setAttribute('points', allPts.map(p => `${p.x},${p.y}`).join(' '));
+            polyline.setAttribute('points', allScreenPts.map(s => `${s.x},${s.y}`).join(' '));
             polyline.setAttribute('class', 'measure-line-preview');
             g.appendChild(polyline);
 
-            pts.forEach((p, idx) => {
-                g.appendChild(this.createHandleElement(p.x, p.y, null, idx));
+            screenPts.forEach((s, idx) => {
+                g.appendChild(this.createHandleElement(s.x, s.y, null, idx));
             });
 
             // Gesamtlänge berechnen
+            const allImgPts = [...pts, currentCursorImg];
             let totalPx = 0;
-            for (let i = 1; i < allPts.length; i++) {
-                totalPx += Math.hypot(allPts[i].x - allPts[i - 1].x, allPts[i].y - allPts[i - 1].y);
+            for (let i = 1; i < allImgPts.length; i++) {
+                totalPx += Math.hypot(allImgPts[i].x - allImgPts[i - 1].x, allImgPts[i].y - allImgPts[i - 1].y);
             }
-            g.appendChild(this.createBadgeElement(currentCursor.x, currentCursor.y, `Gesamt: ${this.formatDistance(totalPx)}`));
+            g.appendChild(this.createBadgeElement(sCursor.x, sCursor.y, `Gesamt: ${this.formatDistance(totalPx)}`));
         } else if (type === 'area') {
             const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygon.setAttribute('points', allPts.map(p => `${p.x},${p.y}`).join(' '));
+            polygon.setAttribute('points', allScreenPts.map(s => `${s.x},${s.y}`).join(' '));
             polygon.setAttribute('class', 'measure-area-polygon');
             g.appendChild(polygon);
 
-            pts.forEach((p, idx) => {
-                g.appendChild(this.createHandleElement(p.x, p.y, null, idx));
+            screenPts.forEach((s, idx) => {
+                g.appendChild(this.createHandleElement(s.x, s.y, null, idx));
             });
         }
     }
@@ -909,6 +977,7 @@ class PlanMeasureApp {
 
     cancelActiveDrawing() {
         this.activeDrawing = null;
+        this.lastPreviewCoord = null;
         this.el.groupActive.innerHTML = '';
         this.updateActionBanner();
     }
@@ -952,7 +1021,7 @@ class PlanMeasureApp {
     }
 
     // =========================================================================
-    // SVG Rendering aller Messungen
+    // SVG Rendering aller Messungen (In Bildschirmkoordinaten)
     // =========================================================================
     renderAllMeasurements() {
         const g = this.el.groupMeasurements;
@@ -967,69 +1036,75 @@ class PlanMeasureApp {
             if (m.type === 'line') {
                 const p1 = m.points[0];
                 const p2 = m.points[1];
+                const s1 = this.imageToScreenCoords(p1.x, p1.y);
+                const s2 = this.imageToScreenCoords(p2.x, p2.y);
                 const distPx = Math.hypot(p2.x - p1.x, p2.y - p1.y);
 
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', p1.x);
-                line.setAttribute('y1', p1.y);
-                line.setAttribute('x2', p2.x);
-                line.setAttribute('y2', p2.y);
+                line.setAttribute('x1', s1.x);
+                line.setAttribute('y1', s1.y);
+                line.setAttribute('x2', s2.x);
+                line.setAttribute('y2', s2.y);
                 line.setAttribute('class', 'measure-line');
                 line.setAttribute('stroke', m.color);
                 mGroup.appendChild(line);
 
                 // Handles an Endpunkten
-                mGroup.appendChild(this.createHandleElement(p1.x, p1.y, m.id, 0, m.color));
-                mGroup.appendChild(this.createHandleElement(p2.x, p2.y, m.id, 1, m.color));
+                mGroup.appendChild(this.createHandleElement(s1.x, s1.y, m.id, 0, m.color));
+                mGroup.appendChild(this.createHandleElement(s2.x, s2.y, m.id, 1, m.color));
 
                 // Distanz Badge
-                const midX = (p1.x + p2.x) / 2;
-                const midY = (p1.y + p2.y) / 2;
+                const midX = (s1.x + s2.x) / 2;
+                const midY = (s1.y + s2.y) / 2;
                 mGroup.appendChild(this.createBadgeElement(midX, midY, this.formatDistance(distPx)));
 
             } else if (m.type === 'path') {
+                const screenPts = m.points.map(p => this.imageToScreenCoords(p.x, p.y));
+
                 const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-                polyline.setAttribute('points', m.points.map(p => `${p.x},${p.y}`).join(' '));
+                polyline.setAttribute('points', screenPts.map(s => `${s.x},${s.y}`).join(' '));
                 polyline.setAttribute('class', 'measure-path');
                 polyline.setAttribute('stroke', m.color);
                 mGroup.appendChild(polyline);
 
                 let totalPx = 0;
                 m.points.forEach((p, idx) => {
-                    mGroup.appendChild(this.createHandleElement(p.x, p.y, m.id, idx, m.color));
+                    const s = screenPts[idx];
+                    mGroup.appendChild(this.createHandleElement(s.x, s.y, m.id, idx, m.color));
                     if (idx > 0) {
                         const prev = m.points[idx - 1];
-                        const segDist = Math.hypot(p.x - prev.x, p.y - prev.y);
-                        totalPx += segDist;
+                        totalPx += Math.hypot(p.x - prev.x, p.y - prev.y);
                     }
                 });
 
                 // Gesamt-Badge am letzten Punkt
-                const last = m.points[m.points.length - 1];
+                const last = screenPts[screenPts.length - 1];
                 mGroup.appendChild(this.createBadgeElement(last.x, last.y, `Gesamt: ${this.formatDistance(totalPx)}`));
 
             } else if (m.type === 'area') {
+                const screenPts = m.points.map(p => this.imageToScreenCoords(p.x, p.y));
+
                 const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                polygon.setAttribute('points', m.points.map(p => `${p.x},${p.y}`).join(' '));
+                polygon.setAttribute('points', screenPts.map(s => `${s.x},${s.y}`).join(' '));
                 polygon.setAttribute('class', 'measure-area-polygon');
                 polygon.setAttribute('stroke', m.color);
                 polygon.setAttribute('fill', this.hexToRgba(m.color, 0.25));
                 mGroup.appendChild(polygon);
 
                 m.points.forEach((p, idx) => {
-                    mGroup.appendChild(this.createHandleElement(p.x, p.y, m.id, idx, m.color));
+                    const s = screenPts[idx];
+                    mGroup.appendChild(this.createHandleElement(s.x, s.y, m.id, idx, m.color));
                 });
 
                 // Flächenberechnung & Schwerpunkt
                 const areaPx = this.computePolygonArea(m.points);
                 const centroid = this.computePolygonCentroid(m.points);
-                mGroup.appendChild(this.createBadgeElement(centroid.x, centroid.y, this.formatArea(areaPx)));
+                const sCentroid = this.imageToScreenCoords(centroid.x, centroid.y);
+                mGroup.appendChild(this.createBadgeElement(sCentroid.x, sCentroid.y, this.formatArea(areaPx)));
             }
 
             g.appendChild(mGroup);
         });
-
-        this.updateHandleScale();
     }
 
     createHandleElement(x, y, mid, pidx, color = '#3b82f6') {
@@ -1037,11 +1112,11 @@ class PlanMeasureApp {
         g.setAttribute('class', 'handle-point');
         if (mid) g.setAttribute('data-mid', mid);
         g.setAttribute('data-pidx', pidx);
-        g.setAttribute('transform', `translate(${x}, ${y}) scale(${1 / this.transform.scale})`);
+        g.setAttribute('transform', `translate(${x}, ${y})`);
 
-        // Unsichtbare, große Touch-Hitbox (32px Touch-Fläche für Handys)
+        // Unsichtbare, große Touch-Hitbox (44px Touch-Fläche für Handys)
         const hit = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        hit.setAttribute('r', '20');
+        hit.setAttribute('r', '22');
         hit.setAttribute('class', 'handle-hitbox');
         g.appendChild(hit);
 
@@ -1058,14 +1133,12 @@ class PlanMeasureApp {
     createBadgeElement(x, y, textString) {
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         g.setAttribute('class', 'measure-badge');
-        g.setAttribute('transform', `translate(${x}, ${y}) scale(${1 / this.transform.scale})`);
+        g.setAttribute('transform', `translate(${x}, ${y})`);
 
-        // Text anlegen, um dessen Breite zu messen
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('class', 'badge-text');
         text.textContent = textString;
 
-        // Hintergrundbox
         const charW = 7.5;
         const boxW = Math.max(50, textString.length * charW + 16);
         const boxH = 22;
@@ -1081,22 +1154,6 @@ class PlanMeasureApp {
         g.appendChild(text);
 
         return g;
-    }
-
-    updateHandleScale() {
-        const invScale = 1 / this.transform.scale;
-
-        // Alle Handles und Badges auf konstante Bildschirmgröße skalieren
-        const elements = this.el.measureSvg.querySelectorAll('.handle-point, .measure-badge');
-        elements.forEach(el => {
-            const transform = el.getAttribute('transform');
-            if (transform) {
-                const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
-                if (match) {
-                    el.setAttribute('transform', `translate(${match[1]}, ${match[2]}) scale(${invScale})`);
-                }
-            }
-        });
     }
 
     // =========================================================================
@@ -1166,12 +1223,10 @@ class PlanMeasureApp {
         }
         if (this.el.scaleBarContainer) this.el.scaleBarContainer.style.display = 'flex';
 
-        // Zielbreite in Screen-Pixeln ca. 80-140px
         const targetPx = 110;
         const pxPerMeterScreen = this.scaleConfig.pixelsPerMeter * this.transform.scale;
         const targetMeters = targetPx / pxPerMeterScreen;
 
-        // Schöne runde Einheiten (1, 2, 5, 10, 20, 50, 100, 200, 500, ...)
         const niceValues = [
             0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000
         ];
@@ -1309,7 +1364,7 @@ class PlanMeasureApp {
         let totalAreaPx = 0;
         list.innerHTML = '';
 
-        this.measurements.forEach((m, idx) => {
+        this.measurements.forEach((m) => {
             let valStr = '';
             let detailsStr = '';
 
@@ -1350,20 +1405,17 @@ class PlanMeasureApp {
                 <div class="measurement-details">${detailsStr}</div>
             `;
 
-            // Klick auf Karte zentriert die Messung
             card.addEventListener('click', (e) => {
                 if (e.target.closest('.card-actions')) return;
                 this.focusMeasurement(m);
             });
 
-            // Kopieren Button
             card.querySelector('.btn-copy').addEventListener('click', (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(valStr);
                 this.showToast(`Kopiert: ${valStr}`);
             });
 
-            // Löschen Button
             card.querySelector('.btn-delete').addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.deleteMeasurement(m.id);
@@ -1381,7 +1433,6 @@ class PlanMeasureApp {
         const centroid = this.computePolygonCentroid(m.points);
         const rect = this.el.viewportContainer.getBoundingClientRect();
 
-        // Zentriere Punkt im Viewport
         this.transform.x = rect.width / 2 - centroid.x * this.transform.scale;
         this.transform.y = rect.height / 2 - centroid.y * this.transform.scale;
         this.applyTransform();
@@ -1412,7 +1463,6 @@ class PlanMeasureApp {
     exportAnnotatedImage() {
         if (!this.imageLoaded) return;
 
-        // Sichere maximale Canvas-Größe für Browser-Stabilität (besonders iOS/Android & Firefox)
         const maxCanvasDim = 8192;
         let exportScale = 1.0;
         if (this.imageWidth > maxCanvasDim || this.imageHeight > maxCanvasDim) {
@@ -1430,14 +1480,11 @@ class PlanMeasureApp {
         canvas.height = outH;
         const ctx = canvas.getContext('2d');
 
-        // Bild skaliert auf Canvas zeichnen
         ctx.drawImage(this.image, 0, 0, outW, outH);
 
-        // Hilfsfunktion zur Koordinatenumrechnung für den Export
         const scX = (x) => x * exportScale;
         const scY = (y) => y * exportScale;
 
-        // Messungen auf Canvas zeichnen
         this.measurements.forEach(m => {
             if (!m.visible) return;
 
@@ -1455,14 +1502,12 @@ class PlanMeasureApp {
                 ctx.lineTo(scX(p2.x), scY(p2.y));
                 ctx.stroke();
 
-                // Endpunkte
                 [p1, p2].forEach(p => {
                     ctx.beginPath();
                     ctx.arc(scX(p.x), scY(p.y), baseLineWidth * 2.5, 0, Math.PI * 2);
                     ctx.fill();
                 });
 
-                // Beschriftung
                 const distPx = Math.hypot(p2.x - p1.x, p2.y - p1.y);
                 const text = this.formatDistance(distPx);
                 this.drawCanvasLabel(ctx, scX((p1.x + p2.x) / 2), scY((p1.y + p2.y) / 2), text);
@@ -1505,7 +1550,6 @@ class PlanMeasureApp {
             }
         });
 
-        // Download auslösen
         canvas.toBlob((blob) => {
             if (!blob) {
                 this.showToast('Fehler beim Exportieren des Bildes.');
@@ -1530,7 +1574,6 @@ class PlanMeasureApp {
         const boxW = textMetrics.width + padding * 2;
         const boxH = fontSize + padding * 1.5;
 
-        // Hintergrundbox
         ctx.fillStyle = 'rgba(17, 24, 39, 0.9)';
         ctx.beginPath();
         if (ctx.roundRect) {
@@ -1544,7 +1587,6 @@ class PlanMeasureApp {
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Text
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
