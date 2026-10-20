@@ -4,8 +4,6 @@
  * Optimiert für Desktop und Touch-Smartphones / Tablets
  */
 
-import { generateSampleMap } from './sample-map.js';
-
 class PlanMeasureApp {
     constructor() {
         // Kern-Zustand (State)
@@ -72,11 +70,10 @@ class PlanMeasureApp {
         // Event-Listener initialisieren
         this.initEvents();
 
-        // Maßstabsanzeige aktualisieren
+        // Maßstabsanzeige und Messungsliste initialisieren
         this.updateScaleDisplay();
-
-        // Automatisch Beispiel-Plan laden, damit der Nutzer sofort etwas sieht und messen kann
-        this.loadSamplePlan();
+        this.updateMeasurementsList();
+        this.updateScaleBar();
     }
 
     // =========================================================================
@@ -92,9 +89,7 @@ class PlanMeasureApp {
             groupActive: document.getElementById('groupActive'),
             dropzoneOverlay: document.getElementById('dropzoneOverlay'),
             fileUploadInput: document.getElementById('fileUploadInput'),
-            btnLoadSample: document.getElementById('btnLoadSample'),
             btnDropzoneUpload: document.getElementById('btnDropzoneUpload'),
-            btnDropzoneSample: document.getElementById('btnDropzoneSample'),
 
             // Toolbar & Buttons
             scaleLabelText: document.getElementById('scaleLabelText'),
@@ -108,6 +103,7 @@ class PlanMeasureApp {
             btnZoomOut: document.getElementById('btnZoomOut'),
             btnZoomFit: document.getElementById('btnZoomFit'),
             btnToggleLoupe: document.getElementById('btnToggleLoupe'),
+            scaleBarContainer: document.getElementById('scaleBarContainer'),
             scaleBarLine: document.getElementById('scaleBarLine'),
             scaleBarText: document.getElementById('scaleBarText'),
             hudZoom: document.getElementById('hudZoom'),
@@ -209,10 +205,6 @@ class PlanMeasureApp {
                 }
             }
         });
-
-        // Beispiel-Plan Buttons
-        this.el.btnLoadSample.addEventListener('click', () => this.loadSamplePlan());
-        this.el.btnDropzoneSample.addEventListener('click', () => this.loadSamplePlan());
 
         // Werkzeug-Auswahl (Desktop & Mobile)
         this.el.desktopToolBtns.forEach(btn => {
@@ -319,48 +311,6 @@ class PlanMeasureApp {
 
         const objectUrl = URL.createObjectURL(file);
         this.loadImageUrl(objectUrl, file.name, null, file);
-    }
-
-    loadSamplePlan() {
-        // Erzeuge den interaktiven 200m x 200m Beispiel-Plan
-        const sample = generateSampleMap(100, 200, 200);
-        // Da die Demo-Grafik 20 px/m verwendet (um 4000x4000 px flüssig zu erzeugen),
-        // setzen wir die Skalierung hier auf 20 px/m
-        this.scaleConfig.pixelsPerMeter = sample.naturalScale;
-        this.loadImageUrl(sample.dataUrl, 'Beispiel-Lageplan-200x200m.png', () => {
-            this.showToast('Beispiel-Lageplan geladen! (200m × 200m, Skala: 20 px = 1 m)');
-            this.updateScaleDisplay();
-            // Erstelle eine beispielhafte Messung zur Veranschaulichung
-            this.createSampleMeasurements();
-        });
-    }
-
-    createSampleMeasurements() {
-        this.measurements = [
-            {
-                id: 'demo-1',
-                type: 'line',
-                name: 'Hauptgebäude A (Breite)',
-                color: '#3b82f6',
-                visible: true,
-                points: [{ x: 400, y: 2300 }, { x: 1400, y: 2300 }] // 50m bei 20px/m
-            },
-            {
-                id: 'demo-2',
-                type: 'area',
-                name: 'Parkplatz Areal',
-                color: '#10b981',
-                visible: true,
-                points: [
-                    { x: 1600, y: 2300 },
-                    { x: 2400, y: 2300 },
-                    { x: 2400, y: 2800 },
-                    { x: 1600, y: 2800 }
-                ]
-            }
-        ];
-        this.renderAllMeasurements();
-        this.updateMeasurementsList();
     }
 
     loadImageUrl(url, fileName = 'Bild', callback = null, originalFile = null) {
@@ -819,7 +769,10 @@ class PlanMeasureApp {
     }
 
     handleMeasureClick(point, e) {
-        if (!this.imageLoaded) return;
+        if (!this.imageLoaded) {
+            this.showToast('Bitte öffne zuerst ein Bild (PNG), um zu messen!');
+            return;
+        }
 
         // Wenn noch keine aktive Zeichnung existiert, neue starten
         if (!this.activeDrawing) {
@@ -1207,7 +1160,11 @@ class PlanMeasureApp {
     // Dynamische Maßstabsleiste (Google Maps / CAD Style)
     // =========================================================================
     updateScaleBar() {
-        if (!this.imageLoaded) return;
+        if (!this.imageLoaded) {
+            if (this.el.scaleBarContainer) this.el.scaleBarContainer.style.display = 'none';
+            return;
+        }
+        if (this.el.scaleBarContainer) this.el.scaleBarContainer.style.display = 'flex';
 
         // Zielbreite in Screen-Pixeln ca. 80-140px
         const targetPx = 110;
