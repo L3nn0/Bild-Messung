@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no, viewport-fit=cover">
+    <title>PlanMeasure - Interaktives Maßband & Skalierung</title>
+    <link rel="stylesheet" href="style.css">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="Interaktive Web-App zum Messen von Distanzen und Flächen auf großformatigen Plänen und Bildern. Optimiert für PC und Smartphone.">
+</head>
+<body class="theme-dark">
+    <!-- App Container -->
+    <div id="app">
+        <!-- Top Header Navigation -->
+        <header id="topBar">
+            <div class="header-left">
+                <div class="logo">
+                    <svg class="icon logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21.3 8.7 8.7 21.3c-.4.4-1 .4-1.4 0l-4.6-4.6c-.4-.4-.4-1 0-1.4L15.3 2.7c.4-.4 1-.4 1.4 0l4.6 4.6c.4.4.4 1 0 1.4z"/>
+                        <path d="m7.5 10.5 2 2"/>
+                        <path d="m10.5 7.5 2 2"/>
+                        <path d="m13.5 4.5 2 2"/>
+                        <path d="m4.5 13.5 2 2"/>
+                    </svg>
+                    <span class="logo-text">PlanMeasure</span>
+                </div>
+
+                <!-- Skalierungs-Badge (Klickbar für Schnelleinstellung) -->
+                <button id="btnScaleQuick" class="badge-scale" title="Klicken, um Maßstab / Skalierung zu ändern">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 12h20M6 8v8M18 8v8M12 9v6"/>
+                    </svg>
+                    <span id="scaleLabelText">100 px = 1.00 m</span>
+                </button>
+            </div>
+
+            <!-- Desktop Werkzeugleiste (Tools) -->
+            <div class="header-center desktop-tools">
+                <div class="tool-group" role="radiogroup" aria-label="Werkzeug">
+                    <button id="toolPan" class="tool-btn active" data-tool="pan" title="Verschieben & Zoomen (Hand-Werkzeug)">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
+                            <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/>
+                            <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
+                            <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+                        </svg>
+                        <span>Bewegen</span>
+                    </button>
+                    <button id="toolLine" class="tool-btn" data-tool="line" title="Strecken-Maßband (Punkt A nach B)">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="5" cy="19" r="2.5" fill="currentColor"/>
+                            <circle cx="19" cy="5" r="2.5" fill="currentColor"/>
+                            <line x1="6.8" y1="17.2" x2="17.2" y2="6.8" stroke-dasharray="2 2"/>
+                        </svg>
+                        <span>Strecke</span>
+                    </button>
+                    <button id="toolPath" class="tool-btn" data-tool="path" title="Pfad / Mehrteiliges Maßband (A -> B -> C...)">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="4 19 10 7 15 14 20 5"/>
+                            <circle cx="4" cy="19" r="2" fill="currentColor"/>
+                            <circle cx="10" cy="7" r="2" fill="currentColor"/>
+                            <circle cx="15" cy="14" r="2" fill="currentColor"/>
+                            <circle cx="20" cy="5" r="2" fill="currentColor"/>
+                        </svg>
+                        <span>Pfad</span>
+                    </button>
+                    <button id="toolArea" class="tool-btn" data-tool="area" title="Fläche messen (Vieleck / Polygon)">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="12 3 21 8.5 18 19 6 19 3 8.5" fill="rgba(255,255,255,0.1)"/>
+                        </svg>
+                        <span>Fläche</span>
+                    </button>
+                    <button id="toolCalibrate" class="tool-btn" data-tool="calibrate" title="Maßstab durch Referenzstrecke kalibrieren">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="22" y1="12" x2="18" y2="12"/>
+                            <line x1="6" y1="12" x2="2" y2="12"/>
+                            <line x1="12" y1="6" x2="12" y2="2"/>
+                            <line x1="12" y1="22" x2="12" y2="18"/>
+                        </svg>
+                        <span>Kalibrieren</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Header Right: Upload & Actions -->
+            <div class="header-right">
+                <!-- Bild hochladen Button -->
+                <label for="fileUploadInput" class="btn btn-primary" title="Eigenes Bild / PNG hochladen">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <span class="btn-text">Bild öffnen</span>
+                </label>
+                <input type="file" id="fileUploadInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none">
+
+                <!-- Beispiel-Plan laden -->
+                <button id="btnLoadSample" class="btn btn-secondary" title="200m x 200m Beispiel-Plan laden">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect width="18" height="18" x="3" y="3" rx="2"/>
+                        <path d="M3 9h18M9 21V9"/>
+                    </svg>
+                    <span class="btn-text">Beispiel-Plan</span>
+                </button>
+
+                <!-- Messungen Sidebar Toggle -->
+                <button id="btnToggleList" class="btn btn-icon" title="Messungsliste & Details anzeigen">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="8" y1="6" x2="21" y2="6"/>
+                        <line x1="8" y1="12" x2="21" y2="12"/>
+                        <line x1="8" y1="18" x2="21" y2="18"/>
+                        <line x1="3" y1="6" x2="3.01" y2="6"/>
+                        <line x1="3" y1="12" x2="3.01" y2="12"/>
+                        <line x1="3" y1="18" x2="3.01" y2="18"/>
+                    </svg>
+                    <span id="badgeCount" class="badge-count">0</span>
+                </button>
+
+                <!-- Einstellungen Modal Toggle -->
+                <button id="btnSettings" class="btn btn-icon" title="Einstellungen & Maßstab">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Hauptansicht: Canvas / Viewport Bereich -->
+        <main id="viewportContainer" class="viewport-container">
+            <!-- Leerzustand / Dropzone wenn noch kein Bild geladen -->
+            <div id="dropzoneOverlay" class="dropzone-overlay">
+                <div class="dropzone-card">
+                    <div class="dropzone-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                            <circle cx="9" cy="9" r="2"/>
+                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                        </svg>
+                    </div>
+                    <h2>Bild oder Lageplan hochladen</h2>
+                    <p>Ziehe eine PNG- oder Bilddatei hierher, oder wähle eine Datei aus.</p>
+                    <p class="hint">Auch riesige Dateien (z.B. 200m × 200m bei 100 px/m = 20.000 × 20.000 px) werden flüssig unterstützt.</p>
+                    <div class="dropzone-buttons">
+                        <button id="btnDropzoneUpload" class="btn btn-primary btn-lg">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            PNG auswählen
+                        </button>
+                        <button id="btnDropzoneSample" class="btn btn-secondary btn-lg">
+                            🗺️ 200m-Beispielplan testen
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interaktive Zeichenebene (Stage) -->
+            <div id="stage" class="stage">
+                <!-- Hauptbild (Nativ gerendert, hochauflösend) -->
+                <img id="mainImage" alt="Geladener Plan" draggable="false">
+
+                <!-- Vektorebene für Messlinien, Punkte und Beschriftungen -->
+                <svg id="measureSvg" class="measure-svg">
+                    <defs>
+                        <!-- Pfeilmarkierungen -->
+                        <marker id="arrowStart" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#3b82f6"/>
+                        </marker>
+                        <marker id="arrowEnd" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#3b82f6"/>
+                        </marker>
+                    </defs>
+
+                    <!-- Gruppe für fertige Messungen -->
+                    <g id="groupMeasurements"></g>
+
+                    <!-- Gruppe für aktive / in Entstehung befindliche Zeichnung -->
+                    <g id="groupActive"></g>
+                </svg>
+            </div>
+
+            <!-- Floating Tooltips & HUD -->
+            <!-- Maßstabsleiste (wie bei Google Maps / CAD, dynamisch mit Zoom) -->
+            <div id="scaleBarContainer" class="scalebar-widget">
+                <div id="scaleBarLine" class="scalebar-line"></div>
+                <div id="scaleBarText" class="scalebar-text">10 m</div>
+            </div>
+
+            <!-- Zoom & Koordinaten HUD -->
+            <div class="hud-info">
+                <span id="hudZoom">Zoom: 100%</span>
+                <span class="hud-divider">|</span>
+                <span id="hudCoords">X: 0 m | Y: 0 m</span>
+                <span class="hud-divider">|</span>
+                <span id="hudImageDim">0 × 0 px</span>
+            </div>
+
+            <!-- Floating Zoom-Buttons -->
+            <div class="floating-controls">
+                <button id="btnZoomIn" class="fab-btn" title="Vergrößern (+)">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        <line x1="11" y1="8" x2="11" y2="14"/>
+                        <line x1="8" y1="11" x2="14" y2="11"/>
+                    </svg>
+                </button>
+                <button id="btnZoomOut" class="fab-btn" title="Verkleinern (-)">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        <line x1="8" y1="11" x2="14" y2="11"/>
+                    </svg>
+                </button>
+                <button id="btnZoomFit" class="fab-btn" title="Gesamtansicht / Anpassen (0)">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                </button>
+                <button id="btnToggleLoupe" class="fab-btn" title="Präzisions-Lupe an/aus">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="9"/>
+                        <circle cx="12" cy="12" r="3"/>
+                        <line x1="12" y1="3" x2="12" y2="6"/>
+                        <line x1="12" y1="18" x2="12" y2="21"/>
+                        <line x1="3" y1="12" x2="6" y2="12"/>
+                        <line x1="18" y1="12" x2="21" y2="12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Interaktive Präzisions-Lupe (Magnifier für millimetergenaues Platzieren auf dem Handy & PC) -->
+            <div id="magnifierLoupe" class="magnifier-loupe hidden">
+                <canvas id="loupeCanvas" width="160" height="160"></canvas>
+                <div class="loupe-crosshair"></div>
+                <div id="loupeLabel" class="loupe-label">0.0 m</div>
+            </div>
+
+            <!-- Hinweis / Banner bei aktivem Messvorgang -->
+            <div id="actionBanner" class="action-banner hidden">
+                <span id="actionBannerText">Tippe auf den Startpunkt...</span>
+                <button id="btnCancelAction" class="btn btn-sm btn-ghost">Abbrechen</button>
+                <button id="btnFinishAction" class="btn btn-sm btn-primary hidden">Fertig</button>
+            </div>
+        </main>
+
+        <!-- Mobile Bottom Navigation Bar (Für bequeme Daumenbedienung auf dem Handy) -->
+        <nav id="mobileNavBar" class="mobile-nav-bar">
+            <button class="mobile-nav-btn active" data-tool="pan">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
+                    <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/>
+                    <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
+                    <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+                </svg>
+                <span>Bewegen</span>
+            </button>
+            <button class="mobile-nav-btn" data-tool="line">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="5" cy="19" r="2.5" fill="currentColor"/>
+                    <circle cx="19" cy="5" r="2.5" fill="currentColor"/>
+                    <line x1="6.8" y1="17.2" x2="17.2" y2="6.8" stroke-dasharray="2 2"/>
+                </svg>
+                <span>Strecke</span>
+            </button>
+            <button class="mobile-nav-btn" data-tool="path">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="4 19 10 7 15 14 20 5"/>
+                    <circle cx="4" cy="19" r="2" fill="currentColor"/>
+                    <circle cx="10" cy="7" r="2" fill="currentColor"/>
+                    <circle cx="15" cy="14" r="2" fill="currentColor"/>
+                    <circle cx="20" cy="5" r="2" fill="currentColor"/>
+                </svg>
+                <span>Pfad</span>
+            </button>
+            <button class="mobile-nav-btn" data-tool="area">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="12 3 21 8.5 18 19 6 19 3 8.5" fill="rgba(255,255,255,0.1)"/>
+                </svg>
+                <span>Fläche</span>
+            </button>
+            <button class="mobile-nav-btn" data-tool="calibrate">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="22" y1="12" x2="18" y2="12"/>
+                    <line x1="6" y1="12" x2="2" y2="12"/>
+                    <line x1="12" y1="6" x2="12" y2="2"/>
+                    <line x1="12" y1="22" x2="12" y2="18"/>
+                </svg>
+                <span>Kalibrieren</span>
+            </button>
+        </nav>
+
+        <!-- Sidebar / Drawer: Messungen & Details -->
+        <aside id="sidebarList" class="sidebar-drawer">
+            <div class="sidebar-header">
+                <h3>Messungen (<span id="sidebarCount">0</span>)</h3>
+                <button id="btnCloseSidebar" class="btn btn-icon btn-sm" title="Schließen">✕</button>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- Summen & Schnellübersicht -->
+                <div class="summary-card">
+                    <div class="summary-item">
+                        <span class="summary-title">Gesamtlänge Strecken:</span>
+                        <strong id="sumTotalDistance">0.00 m</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-title">Gesamtfläche:</span>
+                        <strong id="sumTotalArea">0.00 m²</strong>
+                    </div>
+                </div>
+
+                <!-- Liste der einzelnen Messungen -->
+                <div id="measurementsList" class="measurements-list">
+                    <div class="empty-state">
+                        Noch keine Messungen vorhanden.<br>
+                        Wähle oben <strong>Strecke</strong>, <strong>Pfad</strong> oder <strong>Fläche</strong>, um auf dem Plan zu messen.
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button id="btnExportImage" class="btn btn-primary btn-block">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Bild mit Messungen exportieren
+                </button>
+                <div class="button-row">
+                    <button id="btnClearAll" class="btn btn-danger btn-sm">Alle löschen</button>
+                    <button id="btnExportJson" class="btn btn-secondary btn-sm">JSON Export</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Modal: Skalierung & Kalibrierung -->
+        <div id="scaleModal" class="modal-backdrop hidden">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Maßstab & Skalierung einstellen</h3>
+                    <button class="modal-close-btn" data-close="scaleModal">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="tab-manual">Manuelle Eingabe</button>
+                        <button class="tab-btn" data-tab="tab-calibrate">2-Punkte-Kalibrierung</button>
+                    </div>
+
+                    <!-- Tab 1: Manuell Pixel pro Meter -->
+                    <div id="tab-manual" class="tab-content active">
+                        <p class="tab-description">
+                            Gib an, wie viele Bild-Pixel einem Meter in der Realität entsprechen.
+                        </p>
+                        <div class="form-group">
+                            <label for="inputPxPerMeter">Pixel pro Meter (px/m):</label>
+                            <div class="input-with-unit">
+                                <input type="number" id="inputPxPerMeter" value="100" min="0.001" step="any">
+                                <span class="unit-badge">px/m</span>
+                            </div>
+                            <span class="help-text">Beispiel: 100 Pixel = 1.00 Meter</span>
+                        </div>
+
+                        <div class="quick-presets">
+                            <span class="preset-label">Schnellwahl:</span>
+                            <button class="preset-btn" data-px="100">100 px = 1 m</button>
+                            <button class="preset-btn" data-px="50">50 px = 1 m</button>
+                            <button class="preset-btn" data-px="20">20 px = 1 m</button>
+                            <button class="preset-btn" data-px="10">10 px = 1 m</button>
+                            <button class="preset-btn" data-px="1">1 px = 1 m</button>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="selectUnit">Bevorzugte Anzeigeeinheit:</label>
+                            <select id="selectUnit" class="form-select">
+                                <option value="m" selected>Meter (m / m²)</option>
+                                <option value="cm">Zentimeter (cm / cm²)</option>
+                                <option value="mm">Millimeter (mm)</option>
+                                <option value="km">Kilometer (km / ha)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Kalibrierung über 2 Punkte -->
+                    <div id="tab-calibrate" class="tab-content">
+                        <div class="calibration-guide">
+                            <div class="guide-step">
+                                <span class="step-num">1</span>
+                                <span>Klicke auf <strong>"Messstrecke im Bild ziehen"</strong>.</span>
+                            </div>
+                            <div class="guide-step">
+                                <span class="step-num">2</span>
+                                <span>Ziehe eine Linie über eine bekannte Strecke (z.B. einen Maßstabsbalken, ein Gebäude oder eine Tür).</span>
+                            </div>
+                            <div class="guide-step">
+                                <span class="step-num">3</span>
+                                <span>Gib die tatsächliche Länge in Metern ein. Die App errechnet den exakten Maßstab automatisch.</span>
+                            </div>
+                        </div>
+
+                        <button id="btnStartCalibrateWizard" class="btn btn-primary btn-block">
+                            🎯 2-Punkte-Kalibrierung starten
+                        </button>
+                    </div>
+
+                    <!-- Bild-Informationen -->
+                    <div class="image-stats-box">
+                        <div class="stat-row">
+                            <span>Bildauflösung:</span>
+                            <strong id="statImgResolution">-</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>Reale Abmessung:</span>
+                            <strong id="statImgMeters">-</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span>Megapixel:</span>
+                            <strong id="statImgMegapixels">-</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-close="scaleModal">Abbrechen</button>
+                    <button id="btnSaveScale" class="btn btn-primary">Übernehmen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dialog: Kalibrierungslänge eingeben nach 2-Punkt-Zug -->
+        <div id="calibrationPromptModal" class="modal-backdrop hidden">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-header">
+                    <h3>Reale Streckenlänge</h3>
+                    <button class="modal-close-btn" data-close="calibrationPromptModal">✕</button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        Gemessene Distanz im Bild: <strong id="promptPixelDistance">0 px</strong>
+                    </p>
+                    <div class="form-group">
+                        <label for="inputRealDistance">Tatsächliche Länge dieser Strecke in Metern:</label>
+                        <div class="input-with-unit">
+                            <input type="number" id="inputRealDistance" placeholder="z.B. 10.0" min="0.001" step="any" autofocus>
+                            <span class="unit-badge">Meter</span>
+                        </div>
+                    </div>
+                    <div class="computed-preview">
+                        Ergibt Maßstab: <strong id="promptComputedScale">- px/m</strong>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-close="calibrationPromptModal">Abbrechen</button>
+                    <button id="btnApplyCalibration" class="btn btn-primary">Skalierung anwenden</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Benachrichtigung -->
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>

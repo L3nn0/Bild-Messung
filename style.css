@@ -1,0 +1,1264 @@
+/* ==========================================================================
+   PlanMeasure - Modern CAD / GIS Style Sheet
+   Optimiert für Desktop & Mobile (Touch & Gesten)
+   ========================================================================== */
+
+:root {
+    --bg-main: #0b0f19;
+    --bg-surface: #111827;
+    --bg-card: #1f2937;
+    --bg-card-hover: #374151;
+    --border-color: #374151;
+    --border-subtle: #1f2937;
+    
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --primary-light: rgba(59, 130, 246, 0.15);
+    
+    --accent: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --text-main: #f9fafb;
+    --text-muted: #9ca3af;
+    --text-dim: #6b7280;
+
+    --measure-line: #3b82f6;
+    --measure-path: #8b5cf6;
+    --measure-area: #10b981;
+    --measure-area-fill: rgba(16, 185, 129, 0.2);
+    --measure-calibrate: #f59e0b;
+    --handle-stroke: #ffffff;
+    
+    --header-h: 56px;
+    --bottom-bar-h: 60px;
+    --sidebar-w: 360px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none; /* Verhindert ungewolltes Pull-to-Refresh & Scrollen auf mobilen Geräten */
+}
+
+/* ==========================================================================
+   Layout Container
+   ========================================================================== */
+
+#app {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Icons */
+.icon {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2;
+    flex-shrink: 0;
+}
+
+.icon-sm {
+    width: 14px;
+    height: 14px;
+}
+
+/* ==========================================================================
+   Header Navigation
+   ========================================================================== */
+
+#topBar {
+    height: var(--header-h);
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 40;
+    flex-shrink: 0;
+}
+
+.header-left, .header-center, .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--text-main);
+    letter-spacing: -0.3px;
+}
+
+.logo-icon {
+    color: var(--primary);
+    width: 22px;
+    height: 22px;
+}
+
+/* Skalierungs-Badge */
+.badge-scale {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-main);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.badge-scale:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--primary);
+}
+
+.badge-scale svg {
+    color: var(--accent);
+}
+
+/* Desktop Tool Group */
+.tool-group {
+    display: flex;
+    background: var(--bg-main);
+    padding: 3px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    gap: 2px;
+}
+
+.tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.tool-btn:hover {
+    color: var(--text-main);
+    background: var(--bg-card);
+}
+
+.tool-btn.active {
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Generic Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+}
+
+.btn-secondary {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-card-hover);
+}
+
+.btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.btn-danger:hover {
+    background: var(--danger);
+    color: #ffffff;
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.btn-ghost:hover {
+    color: var(--text-main);
+}
+
+.btn-icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    position: relative;
+}
+
+.btn-icon:hover {
+    background: var(--bg-card-hover);
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.btn-lg {
+    padding: 12px 24px;
+    font-size: 15px;
+    border-radius: var(--radius-md);
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.badge-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--primary);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 10px;
+    min-width: 16px;
+    text-align: center;
+}
+
+/* ==========================================================================
+   Haupt-Viewport / Canvas Bereich
+   ========================================================================== */
+
+.viewport-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background-color: #080c14;
+    cursor: default;
+    /* Dezent gepunktetes CAD-Hintergrundmuster */
+    background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+}
+
+.viewport-container.mode-pan {
+    cursor: grab;
+}
+
+.viewport-container.mode-pan:active {
+    cursor: grabbing;
+}
+
+.viewport-container.mode-measure {
+    cursor: crosshair;
+}
+
+/* Interaktive Zeichenebene (Stage) */
+.stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+    pointer-events: none; /* SVG übernimmt spezifische Klicks */
+}
+
+#mainImage {
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+}
+
+.measure-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+}
+
+/* SVG Elemente & Vektoren */
+.measure-line {
+    stroke: var(--measure-line);
+    stroke-width: 2.5;
+    vector-effect: non-scaling-stroke;
+}
+
+.measure-line-preview {
+    stroke: var(--measure-line);
+    stroke-width: 2;
+    stroke-dasharray: 6 4;
+    vector-effect: non-scaling-stroke;
+}
+
+.measure-path {
+    stroke: var(--measure-path);
+    stroke-width: 2.5;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+}
+
+.measure-area-polygon {
+    stroke: var(--measure-area);
+    stroke-width: 2.5;
+    fill: var(--measure-area-fill);
+    vector-effect: non-scaling-stroke;
+}
+
+.measure-calibrate-line {
+    stroke: var(--measure-calibrate);
+    stroke-width: 3;
+    stroke-dasharray: 4 4;
+    vector-effect: non-scaling-stroke;
+}
+
+/* Griffe / Messpunkte */
+.handle-point {
+    pointer-events: all;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.handle-visual {
+    fill: #ffffff;
+    stroke: var(--primary);
+    stroke-width: 2.5;
+    transition: r 0.15s ease, fill 0.15s ease;
+}
+
+.handle-point:hover .handle-visual,
+.handle-point.dragging .handle-visual {
+    fill: var(--accent);
+    stroke: #ffffff;
+}
+
+.handle-hitbox {
+    fill: transparent;
+    cursor: grab;
+}
+
+.handle-hitbox:active {
+    cursor: grabbing;
+}
+
+/* Text Badges in SVG */
+.measure-badge {
+    pointer-events: all;
+    cursor: pointer;
+    user-select: none;
+}
+
+.badge-bg {
+    fill: rgba(17, 24, 39, 0.88);
+    stroke: rgba(255, 255, 255, 0.2);
+    stroke-width: 1;
+    rx: 4;
+    ry: 4;
+}
+
+.badge-text {
+    fill: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    text-anchor: middle;
+    dominant-baseline: central;
+}
+
+/* ==========================================================================
+   Dropzone Overlay
+   ========================================================================== */
+
+.dropzone-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(11, 15, 25, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 30;
+    padding: 20px;
+    transition: opacity 0.2s ease, visibility 0.2s;
+}
+
+.dropzone-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.dropzone-card {
+    background: var(--bg-surface);
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 40px 30px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+}
+
+.dropzone-card.drag-over {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.dropzone-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    color: var(--primary);
+    background: var(--primary-light);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dropzone-icon svg {
+    width: 32px;
+    height: 32px;
+}
+
+.dropzone-card h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.dropzone-card p {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.dropzone-card .hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+}
+
+.dropzone-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ==========================================================================
+   Widgets & Floating Controls
+   ========================================================================== */
+
+/* Dynamische Maßstabsleiste (Google Maps / CAD Style) */
+.scalebar-widget {
+    position: absolute;
+    bottom: 24px;
+    left: 20px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    pointer-events: none;
+}
+
+.scalebar-line {
+    height: 7px;
+    border-left: 2px solid #ffffff;
+    border-right: 2px solid #ffffff;
+    border-bottom: 2px solid #ffffff;
+    width: 100px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+    transition: width 0.1s linear;
+}
+
+.scalebar-text {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    font-family: ui-monospace, monospace;
+}
+
+/* HUD Info */
+.hud-info {
+    position: absolute;
+    bottom: 24px;
+    right: 20px;
+    background: rgba(17, 24, 39, 0.85);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    color: var(--text-muted);
+    z-index: 20;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hud-divider {
+    color: var(--border-color);
+}
+
+/* Floating Controls (Zoom Buttons) */
+.floating-controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 20;
+}
+
+.fab-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: all 0.15s ease;
+}
+
+.fab-btn:hover {
+    background: var(--bg-card-hover);
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.fab-btn:active {
+    transform: translateY(0);
+}
+
+/* ==========================================================================
+   Präzisions-Lupe (Magnifying Loupe)
+   ========================================================================== */
+
+.magnifier-loupe {
+    position: absolute;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0,0,0,0.3);
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 50;
+    transform: translate(-50%, -100%) translateY(-25px);
+    background: #000000;
+    transition: opacity 0.1s ease;
+}
+
+.magnifier-loupe.hidden {
+    display: none;
+}
+
+#loupeCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.loupe-crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.loupe-crosshair::before,
+.loupe-crosshair::after {
+    content: '';
+    position: absolute;
+    background: #ef4444;
+}
+
+.loupe-crosshair::before {
+    top: 0;
+    left: 7px;
+    width: 2px;
+    height: 16px;
+}
+
+.loupe-crosshair::after {
+    top: 7px;
+    left: 0;
+    width: 16px;
+    height: 2px;
+}
+
+.loupe-label {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.75);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   Aktions-Banner (Hinweis bei Zeichnung)
+   ========================================================================== */
+
+.action-banner {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(17, 24, 39, 0.95);
+    border: 1px solid var(--primary);
+    backdrop-filter: blur(8px);
+    padding: 8px 16px;
+    border-radius: 30px;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 30;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.action-banner.hidden {
+    display: none;
+}
+
+/* ==========================================================================
+   Mobile Bottom Navigation Bar
+   ========================================================================== */
+
+.mobile-nav-bar {
+    display: none; /* Desktop default: ausgeblendet */
+    height: var(--bottom-bar-h);
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-color);
+    padding: 4px 8px;
+    z-index: 40;
+    justify-content: space-around;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.mobile-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    flex: 1;
+    min-height: 48px;
+    cursor: pointer;
+}
+
+.mobile-nav-btn.active {
+    color: var(--primary);
+}
+
+.mobile-nav-btn.active svg {
+    stroke: var(--primary);
+}
+
+/* ==========================================================================
+   Sidebar Drawer (Messungen)
+   ========================================================================== */
+
+.sidebar-drawer {
+    position: absolute;
+    top: var(--header-h);
+    right: 0;
+    bottom: 0;
+    width: var(--sidebar-w);
+    background: var(--bg-surface);
+    border-left: 1px solid var(--border-color);
+    z-index: 35;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-lg);
+    transform: translateX(100%);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-drawer.open {
+    transform: translateX(0);
+}
+
+.sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+}
+
+.summary-title {
+    color: var(--text-muted);
+}
+
+.summary-item strong {
+    font-size: 14px;
+    color: var(--accent);
+    font-family: ui-monospace, monospace;
+}
+
+.measurements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 30px 10px;
+    line-height: 1.6;
+}
+
+.measurement-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 0.15s;
+}
+
+.measurement-card:hover {
+    border-color: var(--primary);
+}
+
+.measurement-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.card-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.card-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.measurement-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-main);
+    font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.measurement-details {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.button-row {
+    display: flex;
+    gap: 8px;
+}
+
+.button-row .btn {
+    flex: 1;
+}
+
+/* ==========================================================================
+   Modals & Popups
+   ========================================================================== */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 16px;
+    transition: opacity 0.2s ease;
+}
+
+.modal-backdrop.hidden {
+    display: none;
+}
+
+.modal-dialog {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 480px;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalPop 0.2s ease-out;
+}
+
+.modal-dialog.modal-sm {
+    max-width: 380px;
+}
+
+@keyframes modalPop {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.modal-close-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.modal-close-btn:hover {
+    color: var(--text-main);
+}
+
+.modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    gap: 8px;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.tab-description {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* Forms */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.input-with-unit {
+    display: flex;
+    align-items: center;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.input-with-unit:focus-within {
+    border-color: var(--primary);
+}
+
+.input-with-unit input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 10px 12px;
+    color: var(--text-main);
+    font-size: 15px;
+    font-weight: 600;
+    outline: none;
+}
+
+.unit-badge {
+    padding: 0 12px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    border-left: 1px solid var(--border-color);
+    background: var(--bg-card);
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.help-text {
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.quick-presets {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.preset-label {
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.preset-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.preset-btn:hover {
+    color: var(--text-main);
+    border-color: var(--primary);
+}
+
+.form-select {
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    outline: none;
+}
+
+/* Kalibrierungs-Guide */
+.calibration-guide {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: var(--bg-card);
+    padding: 14px;
+    border-radius: var(--radius-md);
+}
+
+.guide-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.step-num {
+    width: 20px;
+    height: 20px;
+    background: var(--primary);
+    color: #ffffff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.image-stats-box {
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    color: var(--text-muted);
+}
+
+.stat-row strong {
+    color: var(--text-main);
+    font-family: ui-monospace, monospace;
+}
+
+.computed-preview {
+    background: var(--bg-card);
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    text-align: center;
+    color: var(--accent);
+}
+
+/* ==========================================================================
+   Toast Benachrichtigungen
+   ========================================================================== */
+
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: #ffffff;
+    border: 1px solid var(--border-color);
+    padding: 10px 18px;
+    border-radius: 30px;
+    box-shadow: var(--shadow-lg);
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 200;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.toast.hidden {
+    opacity: 0;
+    transform: translate(-50%, 15px);
+}
+
+/* ==========================================================================
+   Responsive Breakpoints für Smartphones und Tablets
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    /* Header auf mobilen Geräten verkleinern */
+    .desktop-tools {
+        display: none !important;
+    }
+
+    .btn-text {
+        display: none;
+    }
+
+    .logo-text {
+        font-size: 14px;
+    }
+
+    /* Mobile Bottom Bar aktivieren */
+    .mobile-nav-bar {
+        display: flex;
+    }
+
+    /* Floating Scale Bar etwas höher platzieren wegen Bottom Bar */
+    .scalebar-widget {
+        bottom: calc(var(--bottom-bar-h) + 14px);
+        left: 14px;
+    }
+
+    .hud-info {
+        display: none; /* Auf kleinen Handys ausblenden, um Platz zu sparen */
+    }
+
+    .floating-controls {
+        top: 14px;
+        right: 14px;
+    }
+
+    .sidebar-drawer {
+        width: 100%;
+        max-width: 100%;
+        top: 0;
+        bottom: 0;
+        border-left: none;
+    }
+
+    .dropzone-card {
+        padding: 24px 16px;
+    }
+}
